@@ -1,5 +1,6 @@
 CC = gcc
 LD = ld
+ASM = nasm
 
 BIN_DIR = /home/artem/bin
 ISO_IMAGE = Liqueur.iso
@@ -7,19 +8,22 @@ ISO_DIR = /home/artem/iso
 
 TARGET = $(BIN_DIR)/kernel
 
-CFLAGS =i386-pc-none-elf -m32 -nostdlib -ffreestanding -O2 -fno-builtin -fno-stack-protector -Wall -Wextra -mno-sse -mno-mmx
+CFLAGS = -m32 -nostdlib -ffreestanding -O2 -fno-builtin -fno-stack-protector -Wall -Wextra -mno-sse -mno-mmx -mno-80387 -mgeneral-regs-only -I./include
+ASMFLAGS = -f elf32
 
-OBJS = ps2.o main.o
+CSOURCES = $(shell find . -name "*.c")
+ASMSOURCES = $(shell find . -name "*.asm")
+
+OBJS = $(CSOURCES:.c=.o) $(ASMSOURCES:.asm=.o)
 
 .PHONY: all clean iso
 
 all: iso
 
-ps2.o: drivers/keyboard/ps2.c
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
-
-main.o: main.c
-	$(CC) $(CFLAGS) -c $< -o $@
+%.o: %.asm
+	$(ASM) $(ASMFLAGS) $< -o $@
 
 $(TARGET): $(OBJS)
 	$(LD) -T linker.ld -m elf_i386 $(OBJS) -o $(TARGET)

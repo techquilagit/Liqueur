@@ -1,6 +1,12 @@
 #include <stdint.h>
-#include "../../bool.h"
-#include "../../color.h"
+#include <bool.h>
+#include <color.h>
+#include <kernel/kernel.h>
+#include <shared.h>
+extern int x;
+extern int y;
+extern KeyEvent ev;
+uint8_t scancode = 0;
 enum Code {
     KEY_A = 0x1E,
     KEY_B = 0x30,
@@ -49,22 +55,22 @@ uint8_t inb(uint16_t scan) {
 void outb(uint16_t scan, uint8_t val) {
     __asm__ __volatile ("outb %0, %w1" : : "a" (val), "Nd" (scan));
 }
-void ps2_write_wait(void) {
+void WriteWaitPS2(void) {
     while (inb(0x64) & 0x02);
 }
-void ps2_read_wait(void) {
+void ReadWaitPS2(void) {
     while ((inb(0x64) & 0x01) == 0);
 }
-void ps2_init(void) {
+void InitPS2(void) {
     while (inb(0x64) & 0x01) inb(0x60);
-    ps2_write_wait();
+    WriteWaitPS2();
     outb(0x64, 0xAE);
-    ps2_write_wait();
+    WriteWaitPS2();
     outb(0x60, 0xFF);
-    ps2_read_wait();
-    if (inb(0x60) == 0xFA) {ps2_read_wait(); inb(0x60);}
+    ReadWaitPS2();
+    if (inb(0x60) == 0xFA) {ReadWaitPS2(); inb(0x60);}
 }
-uint8_t kbd_read_poll(void) {
+uint8_t KbdReadPoll(void) {
     if ((inb(0x64) & 0x01) == 0) {
         return 0;
     }
@@ -73,14 +79,18 @@ uint8_t kbd_read_poll(void) {
 void reboot(void) { 
     outb(0xFE, 0x64);
 }
+void CheckKeyEvent(KeyEvent* ev) {
+    if ((inb(0x64) & 0x01)) {
+        scancode = inb(0x60);
+        ev->keycode = scancode;
+        ev->key = TranslateCode(ev->keycode);
+        ev->pressed = true;
+    } else {
+        ev->pressed = false;
+    }
+}
 #define VIDEO (char*)0xB8000
-extern void printk(char* vga, const char* word, Color color, int* x, int* y);
-extern int x;
-extern int y;
-char TranslateCode() {
-    while ((inb(0x64) & 0x01) == 0) {};
-    unsigned char scancode = inb(0x60);
-    if (scancode >= 0x80) return 0;
+char TranslateCode(uint8_t scancode) {
     switch (scancode) {
         case KEY_A: return 'A';
         case KEY_B: return 'B';
@@ -110,16 +120,11 @@ char TranslateCode() {
         case KEY_Z: return 'Z';
         case KEY_SPACE: return ' ';
         case KEY_ENTER: return '\n';
+        case KEY_BACKSPACE: return '\b';
         default: return 0;
     }
 }
-void dmain(char* kb, int* index) {
-    char c = TranslateCode();
-    if (c == 0) return;
-    if (*index < 255) {
-        kb[(*index)++] = c;
-        kb[*index] = '\0';
-    }
-    char echo[2] = {c, '\0'};
-    printk(VIDEO, echo, WHITE, &x, &y);
-}
+void KeyboardMain(void) {
+    CheckKeyEvent(&ev);
+    PICSendEOI(1);
+} 
