@@ -5,7 +5,7 @@
 #include <shared.h>
 extern int x;
 extern int y;
-extern KeyEvent ev;
+extern KeyEvent keyev;
 uint8_t scancode = 0;
 enum Code {
     KEY_A = 0x1E,
@@ -49,11 +49,11 @@ enum Code {
 };
 uint8_t inb(uint16_t scan) {
     uint8_t ret;
-    __asm__ __volatile ("inb %w1, %0" : "=a" (ret): "Nd" (scan));
+    __asm__ __volatile__("inb %w1, %0" : "=a" (ret): "Nd" (scan));
     return ret;
 }
 void outb(uint16_t scan, uint8_t val) {
-    __asm__ __volatile ("outb %0, %w1" : : "a" (val), "Nd" (scan));
+    __asm__ __volatile__("outb %0, %w1" : : "a" (val), "Nd" (scan));
 }
 void WriteWaitPS2(void) {
     while (inb(0x64) & 0x02);
@@ -69,12 +69,6 @@ void InitPS2(void) {
     outb(0x60, 0xFF);
     ReadWaitPS2();
     if (inb(0x60) == 0xFA) {ReadWaitPS2(); inb(0x60);}
-}
-uint8_t KbdReadPoll(void) {
-    if ((inb(0x64) & 0x01) == 0) {
-        return 0;
-    }
-    return inb(0x60);
 }
 void reboot(void) { 
     outb(0xFE, 0x64);
@@ -125,6 +119,6 @@ char TranslateCode(uint8_t scancode) {
     }
 }
 void KeyboardMain(void) {
-    CheckKeyEvent(&ev);
+    CheckKeyEvent(&keyev);
     PICSendEOI(1);
 } 

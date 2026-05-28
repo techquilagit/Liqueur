@@ -22,18 +22,24 @@ const struct {
 int x = 0;
 int y = 0;
 Kernel core;
-KeyEvent ev;
+KeyEvent keyev;
+TimerEvent timev;
 void startk(uint32_t magic, uint32_t address) {
     char* video = VIDEO;
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) { printk(video, "Invalid magic.", RED, &x, &y); hlt(FLAG_REBOOT_AFTER_HALT); }
-    clean(video, &x, &y);
+    clean(video, BLACK, &x, &y);
     (void)address;
-    core.keyev = &ev;
+    core.keyev = &keyev;
+    core.timev = &timev;
     InitIDT();
     InitPIC();
     InitPS2();
+    InitTimer(100);
     EnableInterrupts();
     while(1) {
+        if (core.timev->triggered) {
+            core.timev->triggered = false;
+        }
         if (core.keyev->pressed) {
             char c = core.keyev->key;
             if (c != 0) {
@@ -42,5 +48,6 @@ void startk(uint32_t magic, uint32_t address) {
             }
             core.keyev->pressed = false;
         }
+        hlt(NONE);
     }
 }

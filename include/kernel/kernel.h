@@ -2,4 +2,5 @@
 #include <drivers/events.h>
 typedef struct {
     KeyEvent *keyev;
+    TimerEvent * timev;
 } Kernel;
